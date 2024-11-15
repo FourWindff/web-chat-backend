@@ -1,4 +1,4 @@
-package org.webchat.webchatbackend.pojo;
+package org.webchat.webchatbackend.pojo.record;
 
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
