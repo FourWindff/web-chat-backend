@@ -29,8 +29,9 @@ public class JsonUtil {
         String password = rootNode.path("password").isMissingNode() ? null : rootNode.get("password").asText();
         Long createAt = rootNode.path("createAt").isMissingNode() ? null : rootNode.get("createAt").asLong();
         String content = rootNode.path("content").isMissingNode() ? null : rootNode.get("content").asText();
+        Integer size = rootNode.path("size").isMissingNode() ? null : rootNode.get("size").asInt();
 
-        return new SocketData(type, sourceUserId, targetUserId, username, password, createAt, content);
+        return new SocketData(type, sourceUserId, targetUserId, username, password, createAt, content, size);
 
     }
 

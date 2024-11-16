@@ -15,13 +15,15 @@ public class ChatRecord {
     private String messageType;
     private String messageContent;
     private long createAt;
+    private Integer size;
 
-    public ChatRecord(String senderId, String receiverId, String messageType, String messageContent, long createAt) {
+    public ChatRecord(String senderId, String receiverId, String messageType, String messageContent, long createAt,Integer size ) {
         this.senderId = senderId;
         this.receiverId = receiverId;
         this.messageType = messageType;
         this.messageContent = messageContent;
         this.createAt = createAt;
+        this.size = size;
     }
     public ChatRecord() {}
 }

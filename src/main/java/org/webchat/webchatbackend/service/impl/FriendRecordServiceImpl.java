@@ -2,6 +2,7 @@ package org.webchat.webchatbackend.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.webchat.webchatbackend.mapper.FriendRecordMapper;
 import org.webchat.webchatbackend.mapper.UserRecordMapper;
 import org.webchat.webchatbackend.pojo.record.FriendRecord;
@@ -13,6 +14,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 @Service
+@Transactional
 public class FriendRecordServiceImpl implements FriendRecordService {
     private final FriendRecordMapper friendRecordMapper;
     private final UserRecordMapper userRecordMapper;

@@ -17,4 +17,5 @@ public class SocketData {
     private String password;
     private Long createAt;
     private String content;
+    private Integer size;
 }
