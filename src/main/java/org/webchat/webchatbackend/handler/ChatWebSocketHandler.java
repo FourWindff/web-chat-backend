@@ -1,6 +1,7 @@
 package org.webchat.webchatbackend.handler;
 
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.web.socket.BinaryMessage;
@@ -21,7 +22,6 @@ import org.webchat.webchatbackend.service.FriendRecordService;
 import org.webchat.webchatbackend.service.UserRecordService;
 import org.webchat.webchatbackend.util.AESUtil;
 import org.webchat.webchatbackend.util.JSONUtil;
-
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.ByteBuffer;
@@ -38,8 +38,6 @@ import java.util.concurrent.ConcurrentHashMap;
 public class ChatWebSocketHandler extends TextWebSocketHandler {
     @Value("${file.file-path}")
     private String fileDirectory;
-    @Value("${security.secret-key}")
-    private String SECRET_KEY;
     //用户id-会话
     private final ConcurrentHashMap<String, WebSocketSession> sessionsList = new ConcurrentHashMap<>();
     //会话id-用户id
@@ -47,13 +45,13 @@ public class ChatWebSocketHandler extends TextWebSocketHandler {
     //用户id-文件名
     private final ConcurrentHashMap<String, String> userUpLoadFileName = new ConcurrentHashMap<>();
 
-
     private final JSONUtil jsonUtil;
     private final AESUtil aesUtil;
     private final ChatRecordService chatRecordService;
     private final UserRecordService userRecordService;
     private final FriendRecordService friendRecordService;
 
+    @Autowired
     public ChatWebSocketHandler(JSONUtil jsonUtil, AESUtil aesUtil, ChatRecordService chatRecordService, UserRecordService userRecordService, FriendRecordService friendRecordService) {
         this.jsonUtil = jsonUtil;
         this.aesUtil = aesUtil;
@@ -78,14 +76,7 @@ public class ChatWebSocketHandler extends TextWebSocketHandler {
     @Override
     public void handleTextMessage(WebSocketSession session, TextMessage message) throws IOException {
         String sessionId = session.getId();
-        String AESData = message.getPayload();
-        String payload = null;
-        try {
-            payload = aesUtil.decrypt(AESData, SECRET_KEY);
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
-
+        String payload = message.getPayload();
         log.info("接收到数据包：{}", payload);
         SocketData socketData = jsonUtil.fromJsonForText(payload);
         //解析出数据包中的元数据，data字段除外
@@ -276,7 +267,7 @@ public class ChatWebSocketHandler extends TextWebSocketHandler {
         }
         if (size < 1024 * 1024) {
             userUpLoadFileName.remove(sourceUserId);
-            log.info("文件已保存至: {}", filePath);
+            log.info("文件已保存至: {},文件大小为：{}", filePath,size);
             //开始转发
             forwardBinary(sourceUserId);
         }
@@ -291,7 +282,6 @@ public class ChatWebSocketHandler extends TextWebSocketHandler {
             try {
                 TextMessage result = new SocketChatListData(chatRecordList).getTextMessage();
                 session.sendMessage(result);
-                chatRecordService.deleteChatRecordByReceiverId(sourceUserId);
                 log.info("向{}用户发送离线聊天记录{}", sourceUserId, result);
             } catch (IOException e) {
                 log.info(e.getMessage(), e);
@@ -300,6 +290,7 @@ public class ChatWebSocketHandler extends TextWebSocketHandler {
         }
         //转发文件本身
         forwardBinary(sourceUserId);
+        chatRecordService.deleteChatRecordByReceiverId(sourceUserId);
     }
 
     // 处理 WebSocket 连接关闭时的行为
