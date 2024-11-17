@@ -10,6 +10,7 @@ import org.springframework.web.socket.WebSocketSession;
 import org.springframework.web.socket.handler.TextWebSocketHandler;
 import org.webchat.webchatbackend.pojo.*;
 import org.webchat.webchatbackend.pojo.record.ChatRecord;
+import org.webchat.webchatbackend.pojo.record.FriendRecord;
 import org.webchat.webchatbackend.pojo.record.UserRecord;
 import org.webchat.webchatbackend.pojo.socketdata.SocketAuthData;
 import org.webchat.webchatbackend.pojo.socketdata.SocketChatListData;
@@ -18,7 +19,8 @@ import org.webchat.webchatbackend.pojo.socketdata.SocketFriendListData;
 import org.webchat.webchatbackend.service.ChatRecordService;
 import org.webchat.webchatbackend.service.FriendRecordService;
 import org.webchat.webchatbackend.service.UserRecordService;
-import org.webchat.webchatbackend.util.JsonUtil;
+import org.webchat.webchatbackend.util.AESUtil;
+import org.webchat.webchatbackend.util.JSONUtil;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -36,6 +38,8 @@ import java.util.concurrent.ConcurrentHashMap;
 public class ChatWebSocketHandler extends TextWebSocketHandler {
     @Value("${file.file-path}")
     private String fileDirectory;
+    @Value("${security.secret-key}")
+    private String SECRET_KEY;
     //用户id-会话
     private final ConcurrentHashMap<String, WebSocketSession> sessionsList = new ConcurrentHashMap<>();
     //会话id-用户id
@@ -44,13 +48,15 @@ public class ChatWebSocketHandler extends TextWebSocketHandler {
     private final ConcurrentHashMap<String, String> userUpLoadFileName = new ConcurrentHashMap<>();
 
 
-    private final JsonUtil jsonUtil;
+    private final JSONUtil jsonUtil;
+    private final AESUtil aesUtil;
     private final ChatRecordService chatRecordService;
     private final UserRecordService userRecordService;
     private final FriendRecordService friendRecordService;
 
-    public ChatWebSocketHandler(JsonUtil jsonUtil, ChatRecordService chatRecordService, UserRecordService userRecordService, FriendRecordService friendRecordService) {
+    public ChatWebSocketHandler(JSONUtil jsonUtil, AESUtil aesUtil, ChatRecordService chatRecordService, UserRecordService userRecordService, FriendRecordService friendRecordService) {
         this.jsonUtil = jsonUtil;
+        this.aesUtil = aesUtil;
         this.chatRecordService = chatRecordService;
         this.userRecordService = userRecordService;
         this.friendRecordService = friendRecordService;
@@ -72,7 +78,14 @@ public class ChatWebSocketHandler extends TextWebSocketHandler {
     @Override
     public void handleTextMessage(WebSocketSession session, TextMessage message) throws IOException {
         String sessionId = session.getId();
-        String payload = message.getPayload();
+        String AESData = message.getPayload();
+        String payload = null;
+        try {
+            payload = aesUtil.decrypt(AESData, SECRET_KEY);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+
         log.info("接收到数据包：{}", payload);
         SocketData socketData = jsonUtil.fromJsonForText(payload);
         //解析出数据包中的元数据，data字段除外
@@ -115,7 +128,7 @@ public class ChatWebSocketHandler extends TextWebSocketHandler {
 
             //用户注册操作，返回注册情况
             //需要 sourceUserId，username，password
-            case REGISTRY:
+            case REGISTER:
                 if (userRecordService.exist(sourceUserId, password)) {
                     TextMessage result = new SocketAuthData(AuthStatus.REGISTER_FAIL_USERNAME_EXISTS, null, null, null).getTextMessage();
                     session.sendMessage(result);
@@ -197,13 +210,24 @@ public class ChatWebSocketHandler extends TextWebSocketHandler {
 
             //添加好友
             //需要sourceUserId，targetUserId，整个数据包
-            case ADD_FRIEND:
+            case ADD_FRIEND_OFFER:
+                forwardMessage(message);
                 break;
-
+            case ADD_FRIEND_SUCCESS:
+                FriendRecord friendRecord1 = new FriendRecord(sourceUserId, targetUserId);
+                FriendRecord friendRecord2 = new FriendRecord(targetUserId, sourceUserId);
+                friendRecordService.saveFriendRecord(friendRecord1);
+                friendRecordService.saveFriendRecord(friendRecord2);
+                forwardMessage(message);
+                break;
+            case ADD_FRIEND_FAIL:
+                forwardMessage(message);
+                break;
 
             //删除好友
             //需要sourceUserId，targetUserId，整个数据包
             case DELETE_FRIEND:
+                friendRecordService.deleteFriendRecord(sourceUserId, targetUserId);
                 break;
 
 
@@ -321,8 +345,8 @@ public class ChatWebSocketHandler extends TextWebSocketHandler {
             }
         } else {
             //如果对方不在线保存文字聊天记录，文件聊天记录都会保存，直到被发送过去
-            if(SocketDataType.TEXT_CHAT.getType().equals(type)) {
-                ChatRecord chatRecord = new ChatRecord(sourceUserId, targetUserId, type, content, createAt,size );
+            if (SocketDataType.TEXT_CHAT.getType().equals(type)) {
+                ChatRecord chatRecord = new ChatRecord(sourceUserId, targetUserId, type, content, createAt, size);
                 chatRecordService.saveChatRecord(chatRecord);
             }
         }
@@ -347,8 +371,6 @@ public class ChatWebSocketHandler extends TextWebSocketHandler {
                 }
             });
         }
-
-
     }
 
     private void forwardIceAndSdp(String targetUserId, TextMessage message) {

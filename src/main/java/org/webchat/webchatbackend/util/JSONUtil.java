@@ -10,7 +10,7 @@ import org.webchat.webchatbackend.pojo.SocketData;
 
 @Slf4j
 @Component
-public class JsonUtil {
+public class JSONUtil {
 
     public SocketData fromJsonForText(String json) {
         // 使用 Jackson 的 ObjectMapper 将 JSON 字符串转换为 JsonNode

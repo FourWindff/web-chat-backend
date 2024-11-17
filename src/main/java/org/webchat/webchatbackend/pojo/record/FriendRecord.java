@@ -12,4 +12,8 @@ public class FriendRecord {
     private Integer id;
     private String userId;
     private String friendId;
+    public FriendRecord(String sourceUserId, String targetUserId) {
+        this.userId = sourceUserId;
+        this.friendId = targetUserId;
+    }
 }
