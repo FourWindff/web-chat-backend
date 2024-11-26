@@ -28,6 +28,9 @@
     </scm>
     <properties>
         <java.version>17</java.version>
+        <maven.compiler.source>13</maven.compiler.source>
+        <maven.compiler.target>13</maven.compiler.target>
+
     </properties>
     <dependencies>
         <!-- https://mvnrepository.com/artifact/org.xmlunit/xmlunit-core -->
